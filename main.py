@@ -6,14 +6,14 @@ from mcp import ErrorData, McpError
 from mcp.server.auth.provider import AccessToken
 from mcp.types import INTERNAL_ERROR, INVALID_PARAMS, TextContent
 from pydantic import BaseModel
-from pydantic import AnyUrl, Field
-import readabilipy
 from pathlib import Path
 import fitz  # PyMuPDF
 from fastapi import FastAPI
 import os
+import uvicorn
+import asyncio
 
-# ✅ Token and phone number updated
+# ✅ Token and phone number
 TOKEN = "18d266806344"
 MY_NUMBER = "919553332489"
 
@@ -33,18 +33,18 @@ class SimpleBearerAuthProvider(BearerAuthProvider):
             return AccessToken(token=token, client_id="unknown", scopes=[], expires_at=None)
         return None
 
+# ✅ MCP Setup
 mcp = FastMCP("My MCP Server", auth=SimpleBearerAuthProvider(TOKEN))
 
-ResumeToolDescription = RichToolDescription(
+# ✅ Resume tool
+@mcp.tool(description=RichToolDescription(
     description="Serve your resume in plain markdown.",
     use_when="Puch (or anyone) asks for your resume.",
     side_effects=None,
-)
-
-@mcp.tool(description=ResumeToolDescription.model_dump_json())
+).model_dump_json())
 async def resume() -> str:
     try:
-        pdf_path = Path("CV (4).pdf")  # ✅ Resume file name used as uploaded
+        pdf_path = Path("CV (4).pdf")
         if not pdf_path.exists():
             return "Resume file not found."
 
@@ -62,23 +62,20 @@ async def resume() -> str:
 async def validate() -> str:
     return MY_NUMBER
 
-# FastAPI health check
+# ✅ FastAPI App for health check
 app = FastAPI()
 
-@app.get("/mcp")
-async def handle_mcp():
-    return {"message": "MCP is running!"}
+@app.get("/")
+def root():
+    return {"status": "Server is live. MCP is running!"}
 
-# Server startup
-async def main():
-    await mcp.run_async("streamable-http", host="0.0.0.0", port=8085)
+@app.get("/mcp")
+def mcp_health():
+    return {"status": "OK"}
+
+# ✅ Run both MCP and FastAPI on port 8080
+async def start_all():
+    await mcp.run_async("streamable-http", host="0.0.0.0", port=8080)
 
 if __name__ == "__main__":
-    import asyncio
-    import uvicorn
-
-    # Run both: MCP and FastAPI together
-    async def start_all():
-        await mcp.run_async("streamable-http", host="0.0.0.0", port=int(os.getenv("PORT", 8085)))
-
     asyncio.run(start_all())
