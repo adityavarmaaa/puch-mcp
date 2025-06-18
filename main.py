@@ -10,6 +10,8 @@ from pydantic import AnyUrl, Field
 import readabilipy
 from pathlib import Path
 import fitz  # PyMuPDF
+from fastapi import FastAPI
+import os
 
 # ✅ Token and phone number updated
 TOKEN = "18d266806344"
@@ -60,10 +62,23 @@ async def resume() -> str:
 async def validate() -> str:
     return MY_NUMBER
 
+# FastAPI health check
+app = FastAPI()
+
+@app.get("/mcp")
+async def handle_mcp():
+    return {"message": "MCP is running!"}
+
+# Server startup
 async def main():
     await mcp.run_async("streamable-http", host="0.0.0.0", port=8085)
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
-# run
+    import uvicorn
+
+    # Run both: MCP and FastAPI together
+    async def start_all():
+        await mcp.run_async("streamable-http", host="0.0.0.0", port=int(os.getenv("PORT", 8085)))
+
+    asyncio.run(start_all())
